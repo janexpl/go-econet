@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/econet.iml" filepath="$PROJECT_DIR$/.idea/econet.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/go-econet.iml" filepath="$PROJECT_DIR$/.idea/go-econet.iml" />
     </modules>
   </component>
 </project>

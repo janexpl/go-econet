@@ -2,6 +2,8 @@ package econet
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -10,35 +12,111 @@ import (
 )
 
 type Econet interface {
-	GetParams() (*Params, error)
+	getRequest(cmd string) (*http.Request, error)
+	setParams(paramName int, paramValue int) error
+	GetParams() (Params, error)
+	SetHUWTemp(temp int) error
+	SetBoilerStatus(status BoilerStatus) error
 }
 
 type econet struct {
+	username string
+	password string
 	hostname string
 	client   http.Client
 	logger   *slog.Logger
 }
 
-func (e econet) GetParams() (*Params, error) {
-	type Response struct {
-		Curr struct {
-			params Params
-		} `json:"curr"`
+func (e econet) SetBoilerStatus(status BoilerStatus) error {
+	type response struct {
+		ParamKey   string `json:"paramKey"`
+		ParamValue int    `json:"paramValue"`
+		Result     string `json:"result"`
 	}
-	r := Response{}
-	resp, err := e.client.Get(e.hostname + "/econet/regParams")
+	r := &response{}
+	cmd := fmt.Sprintf("newParam?newParamName=BOILER_CONTROL&newParamValue=%d", status)
+	req, err := e.getRequest(cmd)
 	if err != nil {
-		return nil, err
+		return err
+	}
+	resp, err := e.client.Do(req)
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(body, &r); err != nil {
+		return err
+	}
+	if r.Result != "OK" {
+		return errors.New("unable to set new param: " + r.Result)
+	}
+	return nil
+}
+
+func (e econet) SetHUWTemp(temp int) error {
+	if err := e.setParams(HuwTemp, temp); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (e econet) setParams(paramName int, paramValue int) error {
+	type response struct {
+		ParamKey   string `json:"paramKey"`
+		ParamValue int    `json:"paramValue"`
+		Result     string `json:"result"`
+	}
+	r := response{}
+	cmd := fmt.Sprintf("rmCurrNewParam?newParamKey=%d&newParamValue=%d", paramName, paramValue)
+	req, err := e.getRequest(cmd)
+	if err != nil {
+		return err
+	}
+	resp, err := e.client.Do(req)
+	if err != nil {
+		return err
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if err := json.Unmarshal(body, &r); err != nil {
+		return err
+	}
+	if r.Result != "OK" {
+		return errors.New("unable to set new param: " + r.Result)
+	}
+	return nil
+}
+func (e econet) getRequest(cmd string) (*http.Request, error) {
+	req, err := http.NewRequest("GET", e.hostname+"/econet/"+cmd, nil)
+	if err != nil {
 		return nil, err
 	}
-	return &r.Curr.params, nil
+	req.SetBasicAuth(e.username, e.password)
+	return req, nil
+}
+func (e econet) GetParams() (Params, error) {
+	type Response struct {
+		Param Params `json:"curr"`
+	}
+	r := Response{}
+	req, err := e.getRequest("regParams")
+	resp, err := e.client.Do(req)
+	if err != nil {
+		return Params{}, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return Params{}, err
+	}
+	if err := json.Unmarshal(body, &r); err != nil {
+		return Params{}, err
+	}
+	return r.Param, nil
 }
 
 type Params struct {
@@ -79,6 +157,6 @@ func NewEconet(hostname, username, password string, logger *slog.Logger) Econet 
 		logger.Error("Error executing request: ", err)
 	}
 	defer resp.Body.Close()
-	return &econet{hostname: hostname, logger: logger, client: client}
+	return &econet{username: username, password: password, hostname: hostname, logger: logger, client: client}
 
 }
