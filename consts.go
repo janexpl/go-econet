@@ -1,6 +1,7 @@
 package econet
 
 const HuwTemp = 1281
+const COTemp = 1280
 
 type BoilerStatus uint32
 
