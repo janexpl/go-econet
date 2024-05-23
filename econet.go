@@ -18,7 +18,7 @@ type Econet interface {
 	SetHUWTemp(temp int) error
 	SetBoilerStatus(status BoilerStatus) error
 	SetCOTemp(temp int) error
-	DisableHUW() error
+	ChangeHUWMode(mode int) error
 }
 
 type econet struct {
@@ -173,5 +173,4 @@ func NewEconet(hostname, username, password string, logger *slog.Logger) Econet 
 	}
 	defer resp.Body.Close()
 	return &econet{username: username, password: password, hostname: hostname, logger: logger, client: client}
-
 }
