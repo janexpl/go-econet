@@ -18,6 +18,7 @@ type Econet interface {
 	SetHUWTemp(temp int) error
 	SetBoilerStatus(status BoilerStatus) error
 	SetCOTemp(temp int) error
+	DisableHUW() error
 }
 
 type econet struct {
@@ -62,6 +63,12 @@ func (e econet) SetHUWTemp(temp int) error {
 	return nil
 }
 
+func (e econet) ChangeHUWMode(mode int) error {
+	if err := e.setParams(HUWHeater, mode); err != nil {
+		return err
+	}
+	return nil
+}
 func (e econet) SetCOTemp(temp int) error {
 	if err := e.setParams(COTemp, temp); err != nil {
 		return err
